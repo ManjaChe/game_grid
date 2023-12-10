@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            #main_container {
+                left: 100px;
+                position: relative;
+                background: black;
+            }
+
+            .grid_container {
+                position: absolute;
+                background: rgb(125, 125, 125);
+            }
+
+            .grid_cell {
+                position: absolute;
+                width: 32px;
+                height: 32px;
+                /*background: rgb(176, 255, 171);*/
+            }
+
+            .grid_cell_img {
+                margin: 0px;
+                border: 0px;
+                padding: 0px;
+            }
+
+            #table {
+                font-size: 8px;
+            }
+
+            .nocast, .cast{
+                width: 5px;
+                height: 5px;
+                border: 1px solid;
+            }
+
+            .nocast{
+                background: rgb(251, 161, 140);
+            }
+
+            .cast{
+                background: rgb(161, 255, 154);
+            }
+
+            .available_move_user {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                opacity: 75%;
+                background-image: url("./img/tiles/tile_available.png");
+            }
+
+            .available_move_monster {
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                opacity: 75%;
+                background-image: url("./img/tiles/tile_noselect.png");
+            }
+
+            .available_move_user.available_move_monster{
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                opacity: 75%;
+                background-image: url("./img/tiles/tile_danger.png");
+            }
+
+            .cell_select, .available_move_user.available_move_monster.cell_select{
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                opacity: 100%;
+                background-image: url("./img/tiles/tile_select.png");
+            }
+
+            .cell_noselect{
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                opacity: 100%;
+                background-image: url("./img/tiles/tile_noselect.png");
+            }
+
+            .user {
+                position: absolute;
+            }
+
+            .user_image {
+                width: 100%;
+                height: 100%;
+            }
+
+        </style>
+        <script type="text/javascript" src="main.js"></script>
+        <script>
+            /// <reference path="main.js" />
+            let _levelWalkableData;
+            const table = [];
+
+            window.addEventListener("load", (event) => {
+
+                const levelTilesData = [
+                    [   9,   9,   9,   9,   9,   9,   9,   9,   9,   9],
+                    [   9,   3,   3,   3,   3,   3,   3,   3,   3,   9],
+                    [   9,   3,  40,  40,  40,  40,  40,  40,   3,   9],
+                    [   9,   3,  40, 109, 106,  20, 111,  40,   3,   9],
+                    [   9,   3,  40,  20,  20,  20, 108,  40,   3,   9],
+                    [   9,   3,  40, 105,  20,  20,  20,  40,   3,   9],
+                    [   9,   3,  40, 112,  20, 107, 110,  40,   3,   9],
+                    [   9,   3,  40,  40,  40,  40,  40,  40,   3,   9],
+                    [   9,   3,   3,   3,   3,   3,   3,   3,   3,   9],
+                    [   9,   9,   9,   9,   9,   9,   9,   9,   9,   9],
+                ];
+
+                const levelWalkableData = [
+                    [   1,   1,   1,   1,   1,   1,   1,   1,   1,   1],
+                    [   1,   1,   1,   1,   1,   1,   1,   1,   1,   1],
+                    [   1,   1,   1,   1,   1,   1,   1,   1,   1,   1],
+                    [   1,   1,   1,   0,   0,   1,   0,   1,   1,   1],
+                    [   1,   1,   1,   1,   1,   1,   0,   1,   1,   1],
+                    [   1,   1,   1,   0,   1,   1,   1,   1,   1,   1],
+                    [   1,   1,   1,   0,   1,   0,   0,   1,   1,   1],
+                    [   1,   1,   1,   1,   1,   1,   1,   1,   1,   1],
+                    [   1,   1,   1,   1,   1,   1,   1,   1,   1,   1],
+                    [   1,   1,   1,   1,   1,   1,   1,   1,   1,   1],
+                ];
+
+                _levelWalkableData = levelWalkableData; // *******
+
+                const point = new Point2D(300, 150);
+                const point_iso = CoordHelper.cartToIso(point);
+                const point_cart = CoordHelper.isoToCart(point_iso);
+
+                const userPoint = new Point2D(0, 0);
+                const monstersPoints = [
+                    new Point2D(7, 8),
+                    new Point2D(2, 5)
+                ];
+
+                //console.log(point, point_iso, point_cart)
+
+                const main_element = document.getElementById('main_container');
+                //console.log(main_element)
+                const grid = new Grid(main_element, levelTilesData, levelWalkableData, userPoint, monstersPoints);
+                
+                console.log(grid);
+
+
+                //initTable();
+                
+            });
+
+            let curPos;
+            let startPos;
+            let endPos;
+            /** @type {HTMLElement} character image HTMLElement*/
+            let user;
+            let animateTimer = 0;
+            let moveStep = 0;
+            let curvePath = [];
+
+            function animate()
+            {
+                user = document.getElementById('user');
+                startPos = new Point2D(user.offsetLeft, user.offsetTop);
+                endPos = new Point2D(startPos.x + 20, startPos.y + 20);
+                animateTimer = Date.now();
+
+                window.requestAnimationFrame(doAnimate);
+            }
+
+            function doAnimate()
+            {
+                const duration = 0.5; // seconds
+                const dt = (Date.now() - animateTimer) / duration;
+
+                const newPos = getAnimatePos(startPos, endPos, 0, -50, dt / 1000)
+
+                if(dt >= 1000)
+                {
+                    user.style.left = endPos.x + 'px';
+                    user.style.top = endPos.y + 'px';
+
+                    return;
+                }
+
+                user.style.left = newPos.x + 'px';
+                user.style.top = newPos.y + 'px';
+
+                window.requestAnimationFrame(doAnimate);
+            }
+
+            function getAnimatePos(pointStart, pointEnd, xdepth, ydepth, t) {
+                const pointDepth = new Point2D(
+                    xdepth + (pointStart.x + pointEnd.x) * 0.5,
+                    ydepth + (pointStart.y + pointEnd.y) * 0.5
+                );
+
+                return new Point2D(
+                    (1 - t) * (1 - t) * pointStart.x + 2*t * (1 - t) * pointDepth.x + t*t * pointEnd.x,
+                    (1 - t) * (1 - t) * pointStart.y + 2*t * (1 - t) * pointDepth.y + t*t * pointEnd.y
+                );
+            }
+
+            function initTable()
+            {
+                const t = document.getElementById('table');
+                const tbody = document.createElement('tbody');
+                t.appendChild(tbody);
+
+                for (let i = 0; i < 32; i++) {
+                    const tr = document.createElement('tr');
+                    table[i] = [];
+
+                    for (let j = 0; j < 32; j++) {
+                        const td = document.createElement('td');
+                        table[i][j] = td;
+                        td.className = pointCollision(new Point2D(j, i)) ? 'cast' : 'nocast';
+                        td.innerHTML = pointCollision(new Point2D(j, i));
+                        tr.appendChild(td);
+                    }
+                    
+                    tbody.appendChild(tr);
+                }
+            }
+
+            function col(point)
+            {
+                const A = new Point2D( 0, 16);
+                const B = new Point2D(16,  8);
+                const C = new Point2D(32, 16);
+                const D = new Point2D(16, 24);
+
+                const d = new Point2D(C.x - A.x, D.y - B.y);
+                const r = new Point2D( (A.x + C.x) / 2, (B.y + D.y) / 2);
+
+                return Math.ceil(Math.abs((point.x - r.x) / d.x) + Math.abs((point.y - r.y) / d.y) * 10) / 10;
+                //console.log((point.x - r.x) / d.x, (point.y - r.y) / d.y, Math.abs((point.x - r.x) / d.x) + Math.abs((point.y - r.y) / d.y));
+            }
+
+            function dist(pointA, pointB)
+            {
+                return Math.sqrt(Math.pow(Math.abs(pointA.x - pointB.x), 2) + Math.pow(Math.abs(pointA.y - pointB.y), 2));
+            }
+
+            function distR(point)
+            {
+                const A = new Point2D( 0, 16);
+                const B = new Point2D(16,  8);
+                const C = new Point2D(32, 16);
+                const D = new Point2D(16, 24);
+
+
+                const dA = dist(point, A); 
+                const dB = dist(point, B); 
+                const dC = dist(point, C); 
+                const dD = dist(point, D);
+                
+                const sum = dA + dB + dC + dD;
+
+                //console.log(sum, dA, dB, dC, dD)
+
+                const H = dist(A, B)
+                const Diag = new Point2D(dist(A, C) / 2, dist(B, D) / 2);
+                const r = new Point2D( (A.x + C.x) / 2, (B.y + D.y) / 2);
+
+                return (Math.abs( (point.x - r.x) / Diag.x) + Math.abs( (point.y - r.y) / Diag.y)) <= H;
+            }
+
+            function f_line (point, pointA, pointB)
+            {
+		        //return  (x - x0) * (y1 - y0) - (y - y0) * (x1 - x0);
+                return  (pointB.x - pointA.x) * (point.y - pointA.y) - (pointB.y - pointA.y) * (point.x - pointA.x);
+	        }
+
+            function f_line_old (x, x0, x1, y, y0, y1)
+            {
+		        //return  (x - x0) * (y1 - y0) - (y - y0) * (x1 - x0);
+                return  (x1 - x0) * (y - y0) - (y1 - y0) * (x - x0);
+	        }
+
+            function pointCollision(point, offset)
+            {
+                if(offset == undefined || offset == null)
+                {
+                    offset = new Point2D(0, 0);
+                }
+                const A = new Point2D( 0 + offset.x, 16 + offset.y);
+                const B = new Point2D(16 + offset.x,  8 + offset.y);
+                const C = new Point2D(32 + offset.x, 16 + offset.y);
+                const D = new Point2D(16 + offset.x, 24 + offset.y);
+                
+                const r = new Point2D( (A.x + C.x) / 2, (B.y + D.y) / 2);
+
+                const l = f_line(point, A, B);
+                const m = f_line(point, B, C);
+                const q = f_line(point, C, D);
+                const w = f_line(point, D, A);
+
+                if( (point.x == 4 && point.y == 10) || (point.x == 28 && point.y == 10) || (point.x == 4 && point.y == 30) || (point.x == 28 && point.y == 30) || (point.x == 16 && point.y == 16))
+                {
+                    console.log(point, [l, m, q, w]);
+                }
+                return (l >= 0) && (m >= 0)  && (q >= 0) && (w >= 0);
+            }
+
+
+            let map = new NodesMap();
+            let item1 = new GridNode(new Point2D(0, 0));
+            let item2 = new GridNode(new Point2D(0, 1));
+            let item3 = new GridNode(new Point2D(0, 2));
+            let item4 = new GridNode(new Point2D(0, 3));
+            let item5 = new GridNode(new Point2D(0, 4));
+            let item6 = new GridNode(new Point2D(0, 4));
+            let item7 = new GridNode(new Point2D(0, 4));
+            item1.cost = 0;
+            item2.cost = 2;
+            item3.cost = 5;
+            item4.cost = 3;
+            item5.cost = 1;
+            item6.cost = 4;
+            item7.cost = -10;
+
+            map.add(item1);
+            map.add(item2);
+            map.add(item3);
+            map.add(item4);
+            map.add(item5);
+            map.add(item6);
+            map.add(item7);
+        </script>
+    </head>
+
+    <body>
+        <div id="main_container"></div>
+        <div id="debug">
+            <table id="table">
+            </table>
+        </div>
+    </body>
+</html>
